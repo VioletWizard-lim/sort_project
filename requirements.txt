@@ -1,0 +1,7 @@
+opencv-python
+easyocr
+pillow
+numpy
+pyserial
+vosk
+sounddevice
