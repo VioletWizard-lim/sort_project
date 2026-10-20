@@ -21,6 +21,8 @@ Scratch 프로젝트 `35(final)` (`scratch/35final.sb3`)를 Python으로 옮겼�
 pip install -r requirements.txt
 ```
 
+윈도우에서는 명령 대신 **`설치.bat`을 더블클릭**해도 됩니다. (처음 한 번만, 인터넷 필요)
+
 ### 음성 인식 (선택)
 [Vosk 한국어 모델](https://alphacephei.com/vosk/models) `vosk-model-small-ko-0.22`를 받아
 `models/vosk-model-small-ko-0.22` 폴더에 압축을 풉니다. 모델이 없으면 스페이스바로만 진행합니다.
