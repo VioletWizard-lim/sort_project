@@ -3,5 +3,5 @@ easyocr
 pillow
 numpy
 pyserial
-vosk
+SpeechRecognition
 sounddevice
