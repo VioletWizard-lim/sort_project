@@ -12,6 +12,7 @@ import urllib.request
 import zipfile
 
 SAMPLE_RATE = 16000
+MIN_CONFIDENCE = 0.7  # 이보다 자신 없게 알아들은 말은 무시한다
 MODEL_BASE_URL = "https://alphacephei.com/vosk/models/"
 
 
@@ -38,6 +39,18 @@ def ensure_model(model_path):
     return os.path.isdir(model_path)
 
 
+def find_keyword(result, words, min_confidence=MIN_CONFIDENCE):
+    """Vosk 최종 결과에서 정해 둔 말을 찾는다. 없으면 None.
+    result 는 SetWords(True) 로 받은 {"text": ..., "result": [{"word", "conf"}, ...]}."""
+    for heard in result.get("result", []):
+        if heard["conf"] < min_confidence:
+            continue
+        for word in words:
+            if word in heard["word"]:
+                return word
+    return None
+
+
 class KeywordListener(threading.Thread):
     def __init__(self, model_path, words, triggers, stop_event):
         super().__init__(daemon=True)
@@ -59,9 +72,9 @@ class KeywordListener(threading.Thread):
 
         vosk.SetLogLevel(-1)
         model = vosk.Model(self.model_path)
-        # 인식할 말을 좁혀서 잘못 알아듣는 것을 줄인다
-        recognizer = vosk.KaldiRecognizer(model, SAMPLE_RATE,
-                                          json.dumps(self.words + ["[unk]"], ensure_ascii=False))
+        # 단어 목록으로 좁히면 아무 소리나 그 단어로 끼워 맞추므로, 들은 말을 그대로 받아 적는다
+        recognizer = vosk.KaldiRecognizer(model, SAMPLE_RATE)
+        recognizer.SetWords(True)  # 단어마다 얼마나 확실한지(conf)도 받는다
         audio = queue.Queue()
 
         def on_audio(data, frames, time, status):
@@ -77,17 +90,16 @@ class KeywordListener(threading.Thread):
                         data = audio.get(timeout=0.5)
                     except queue.Empty:
                         continue
-                    if recognizer.AcceptWaveform(data):
-                        text = json.loads(recognizer.Result())["text"]
-                        if text:
-                            print(f"[음성] 들은 말: {text}")
-                    else:
-                        text = json.loads(recognizer.PartialResult())["partial"]
-                    text = text.replace(" ", "")
-                    for word in self.words:
-                        if word in text:
-                            self.triggers.put(("word", word))
-                            recognizer.Reset()
-                            break
+                    # 말이 끝났을 때의 최종 결과만 쓴다 (중간 결과는 자주 바뀐다)
+                    if not recognizer.AcceptWaveform(data):
+                        continue
+                    result = json.loads(recognizer.Result())
+                    if not result.get("text"):
+                        continue
+                    heard = " ".join(f"{w['word']}({w['conf']:.2f})" for w in result.get("result", []))
+                    print(f"[음성] 들은 말: {heard}")
+                    word = find_keyword(result, self.words)
+                    if word:
+                        self.triggers.put(("word", word))
         except Exception as e:
             print(f"[음성] 마이크를 사용할 수 없어 음성 인식을 끕니다 ({e})")
