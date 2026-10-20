@@ -1,14 +1,41 @@
 """음성 인식: 정해 둔 말('확인', 정렬 이름 등)을 알아들으면 알려준다.
 
 인터넷 없이 동작하는 Vosk 한국어 모델을 사용한다.
+모델이 없으면 처음 한 번 인터넷에서 받아 온다.
 모델이나 마이크가 없으면 음성 인식 없이 실행한다.
 """
 import json
 import os
 import queue
 import threading
+import urllib.request
+import zipfile
 
 SAMPLE_RATE = 16000
+MODEL_BASE_URL = "https://alphacephei.com/vosk/models/"
+
+
+def ensure_model(model_path):
+    """모델 폴더가 없으면 받아서 압축을 푼다. 성공하면 True."""
+    if os.path.isdir(model_path):
+        return True
+    name = os.path.basename(os.path.normpath(model_path))
+    parent = os.path.dirname(os.path.abspath(model_path))
+    zip_path = os.path.join(parent, name + ".zip")
+    print("[음성] 음성 인식 모델을 받는 중... (처음 한 번, 약 80MB)")
+    try:
+        os.makedirs(parent, exist_ok=True)
+        urllib.request.urlretrieve(MODEL_BASE_URL + name + ".zip", zip_path)
+        with zipfile.ZipFile(zip_path) as z:
+            z.extractall(parent)
+    except Exception as e:
+        print(f"[음성] 모델을 받지 못했습니다 ({e})")
+        return False
+    finally:
+        if os.path.exists(zip_path):
+            os.remove(zip_path)
+    print("[음성] 모델 준비 완료")
+    return os.path.isdir(model_path)
 
 
 class KeywordListener(threading.Thread):
@@ -20,14 +47,14 @@ class KeywordListener(threading.Thread):
         self.stop_event = stop_event
 
     def run(self):
-        if not os.path.isdir(self.model_path):
-            print(f"[음성] 모델 폴더가 없어 음성 인식 없이 실행합니다: {self.model_path}")
-            return
         try:
             import sounddevice as sd
             import vosk
         except ImportError as e:
             print(f"[음성] 라이브러리가 없어 음성 인식 없이 실행합니다 ({e})")
+            return
+        if not ensure_model(self.model_path):
+            print(f"[음성] 모델이 없어 음성 인식 없이 실행합니다: {self.model_path}")
             return
 
         vosk.SetLogLevel(-1)
@@ -43,6 +70,7 @@ class KeywordListener(threading.Thread):
         try:
             with sd.RawInputStream(samplerate=SAMPLE_RATE, blocksize=4000, dtype="int16",
                                    channels=1, callback=on_audio):
+                print(f"[음성] 마이크: {sd.query_devices(kind='input')['name']}")
                 print(f"[음성] 알아듣는 말: {', '.join(self.words)}")
                 while not self.stop_event.is_set():
                     try:
@@ -51,6 +79,8 @@ class KeywordListener(threading.Thread):
                         continue
                     if recognizer.AcceptWaveform(data):
                         text = json.loads(recognizer.Result())["text"]
+                        if text:
+                            print(f"[음성] 들은 말: {text}")
                     else:
                         text = json.loads(recognizer.PartialResult())["partial"]
                     text = text.replace(" ", "")

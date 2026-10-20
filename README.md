@@ -24,8 +24,11 @@ pip install -r requirements.txt
 윈도우에서는 명령 대신 **`설치.bat`을 더블클릭**해도 됩니다. (처음 한 번만, 인터넷 필요)
 
 ### 음성 인식 (선택)
-[Vosk 한국어 모델](https://alphacephei.com/vosk/models) `vosk-model-small-ko-0.22`를 받아
-`models/vosk-model-small-ko-0.22` 폴더에 압축을 풉니다. 모델이 없으면 스페이스바로만 진행합니다.
+처음 실행할 때 [Vosk 한국어 모델](https://alphacephei.com/vosk/models) `vosk-model-small-ko-0.22`(약 80MB)를
+`models/` 폴더에 자동으로 받습니다. 받지 못하면 스페이스바로만 진행합니다.
+
+실행 창에 `[음성] 마이크: ...`(사용 중인 마이크)와 `[음성] 들은 말: ...`(알아들은 말)이 나오니,
+음성이 안 될 때 확인해 보세요. 다른 마이크가 잡혀 있으면 윈도우 **설정 → 소리 → 입력**에서 기본 마이크를 바꾸면 됩니다.
 
 ### 아두이노 (선택)
 1. Arduino IDE에서 **LiquidCrystal I2C** 라이브러리(Frank de Brabander) 설치
