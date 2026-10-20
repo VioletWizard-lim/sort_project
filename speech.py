@@ -1,4 +1,4 @@
-"""음성 인식: '확인'이라고 말하면 스페이스바를 누른 것과 같게 처리한다.
+"""음성 인식: 정해 둔 말('확인', 정렬 이름 등)을 알아들으면 알려준다.
 
 인터넷 없이 동작하는 Vosk 한국어 모델을 사용한다.
 모델이나 마이크가 없으면 음성 인식 없이 실행한다.
@@ -12,10 +12,10 @@ SAMPLE_RATE = 16000
 
 
 class KeywordListener(threading.Thread):
-    def __init__(self, model_path, keyword, triggers, stop_event):
+    def __init__(self, model_path, words, triggers, stop_event):
         super().__init__(daemon=True)
         self.model_path = model_path
-        self.keyword = keyword
+        self.words = sorted(set(words), key=len, reverse=True)  # 긴 말부터 찾는다
         self.triggers = triggers
         self.stop_event = stop_event
 
@@ -32,9 +32,9 @@ class KeywordListener(threading.Thread):
 
         vosk.SetLogLevel(-1)
         model = vosk.Model(self.model_path)
-        # 인식할 단어를 '확인'으로 좁혀서 잘못 알아듣는 것을 줄인다
+        # 인식할 말을 좁혀서 잘못 알아듣는 것을 줄인다
         recognizer = vosk.KaldiRecognizer(model, SAMPLE_RATE,
-                                          json.dumps([self.keyword, "[unk]"], ensure_ascii=False))
+                                          json.dumps(self.words + ["[unk]"], ensure_ascii=False))
         audio = queue.Queue()
 
         def on_audio(data, frames, time, status):
@@ -43,7 +43,7 @@ class KeywordListener(threading.Thread):
         try:
             with sd.RawInputStream(samplerate=SAMPLE_RATE, blocksize=4000, dtype="int16",
                                    channels=1, callback=on_audio):
-                print(f"[음성] '{self.keyword}' 이라고 말하면 확인됩니다.")
+                print(f"[음성] 알아듣는 말: {', '.join(self.words)}")
                 while not self.stop_event.is_set():
                     try:
                         data = audio.get(timeout=0.5)
@@ -53,8 +53,11 @@ class KeywordListener(threading.Thread):
                         text = json.loads(recognizer.Result())["text"]
                     else:
                         text = json.loads(recognizer.PartialResult())["partial"]
-                    if self.keyword in text.replace(" ", ""):
-                        self.triggers.put("voice")
-                        recognizer.Reset()
+                    text = text.replace(" ", "")
+                    for word in self.words:
+                        if word in text:
+                            self.triggers.put(("word", word))
+                            recognizer.Reset()
+                            break
         except Exception as e:
             print(f"[음성] 마이크를 사용할 수 없어 음성 인식을 끕니다 ({e})")

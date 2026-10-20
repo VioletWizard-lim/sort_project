@@ -6,7 +6,8 @@ Step 하나는 '카드 두 장(a, b)을 비교해서 바꿀지 말지'이다.
     swap=False -> 학생이 그대로 두고 확인해야 정답
 message 가 있으면 그 단계를 통과한 뒤에 말풍선으로 보여준다.
 
-새 정렬을 추가하려면 같은 모양의 함수를 만들고 SORTS 에 이름을 등록하면 된다.
+새 정렬을 추가하려면 같은 모양의 함수를 만들고 SORTS 에 SortMethod 로 등록하면 된다.
+SORTS 에 넣은 순서대로 키보드 숫자 1, 2, 3 ... 이 붙는다.
 """
 from dataclasses import dataclass
 
@@ -17,6 +18,14 @@ class Step:
     b: int
     swap: bool
     message: str = None
+
+
+@dataclass
+class SortMethod:
+    name: str          # 말풍선에 보여줄 이름
+    lcd_name: str      # LCD에 보여줄 영어 이름 (LCD는 한글을 못 쓴다)
+    words: tuple       # 말로 고를 때 알아들을 말
+    make_steps: object  # 카드 리스트 -> Step 리스트
 
 
 def apply(cards, step):
@@ -48,5 +57,5 @@ def bubble_sort(cards):
 
 
 SORTS = {
-    "bubble": bubble_sort,
+    "bubble": SortMethod("버블 정렬", "Bubble", ("버블", "거품"), bubble_sort),
 }

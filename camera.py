@@ -3,6 +3,7 @@
 Scratch의 카메라 인식 화면 대신 OpenCV 창에 카메라 영상을 띄운다.
 창에는 인식한 숫자 상자, 말풍선, LCD/LED 상태가 함께 표시된다.
     스페이스바  : 확인 (카드 읽기)
+    숫자키      : 정렬 방법 고르기
     q / ESC     : 종료
 """
 import os
@@ -133,10 +134,10 @@ class CameraView:
                 cv2.imshow(WINDOW, self._draw(frame.copy()))
 
                 key = cv2.waitKey(1) & 0xFF
-                if key == ord(" "):
-                    self.triggers.put("space")
-                elif key in (27, ord("q")):
+                if key in (27, ord("q")):
                     self.stop_event.set()
+                elif 32 <= key < 127:
+                    self.triggers.put(("key", chr(key)))
                 if cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                     self.stop_event.set()
         finally:

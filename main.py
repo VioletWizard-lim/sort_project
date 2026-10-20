@@ -1,6 +1,6 @@
 """카드 정렬 확인 프로그램 실행 파일.
 
-    python main.py
+    python main.py                     # 시작할 때 정렬 방법을 고른다
     python main.py --sort bubble --camera 1 --port COM3
     python main.py --camera http://192.168.0.10:8080/video   # 휴대폰 카메라 앱
 """
@@ -11,15 +11,15 @@ import traceback
 
 from board import Board
 from camera import CameraView, CardReader
-from checker import NUM_CARDS, SortChecker
+from checker import CONFIRM_WORD, NUM_CARDS, SortChecker
 from sorts import SORTS
 from speech import KeywordListener
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="카드 정렬 확인 프로그램")
-    parser.add_argument("--sort", choices=sorted(SORTS), default="bubble",
-                        help="정렬 방법 (기본: bubble)")
+    parser.add_argument("--sort", choices=list(SORTS), default=None,
+                        help="정렬 방법을 미리 정하기 (안 정하면 시작할 때 말이나 숫자키로 고른다)")
     parser.add_argument("--camera", default="0",
                         help="카메라 번호 또는 영상 주소 (기본: 0)")
     parser.add_argument("--port", default="auto",
@@ -43,9 +43,11 @@ def main():
     board = Board(args.port)
     reader = CardReader(gpu=args.gpu)
     view = CameraView(source, reader, board, triggers, stop_event, font_path=args.font)
-    checker = SortChecker(view, board, triggers, stop_event, SORTS[args.sort], num_cards=args.cards)
+    checker = SortChecker(view, board, triggers, stop_event, SORTS,
+                          sort=args.sort, num_cards=args.cards)
 
-    KeywordListener(args.vosk_model, "확인", triggers, stop_event).start()
+    words = [CONFIRM_WORD] + [word for method in SORTS.values() for word in method.words]
+    KeywordListener(args.vosk_model, words, triggers, stop_event).start()
 
     def run_checker():
         try:

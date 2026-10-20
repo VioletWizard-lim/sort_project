@@ -10,6 +10,7 @@ import re
 from sorts import apply
 
 NUM_CARDS = 8
+CONFIRM_WORD = "확인"
 
 OFF = (0, 0, 0)
 BLUE = (0, 0, 255)
@@ -33,12 +34,13 @@ def parse_card(text):
 
 
 class SortChecker:
-    def __init__(self, view, board, triggers, stop_event, sort, num_cards=NUM_CARDS):
+    def __init__(self, view, board, triggers, stop_event, sorts, sort=None, num_cards=NUM_CARDS):
         self.view = view            # 카메라 창 (say, read_text)
         self.board = board          # 아두이노 (rgb, lcd)
-        self.triggers = triggers    # 스페이스바 / 음성 '확인' 신호가 들어오는 큐
+        self.triggers = triggers    # ("key", 글자) / ("word", 알아들은 말) 이 들어오는 큐
         self.stop_event = stop_event
-        self.sort = sort            # sorts.py 의 정렬 함수
+        self.sorts = list(sorts.values())  # 고를 수 있는 정렬 방법 (숫자키 1부터)
+        self.method = sorts[sort] if sort else None  # 고른 정렬 방법
         self.num_cards = num_cards
 
         self.card_list = []   # 카드목록: 처음 등록한 카드들
@@ -72,8 +74,8 @@ class SortChecker:
         self.say(message, 2)
         self.board.rgb(OFF)
 
-    def wait_trigger(self):
-        """스페이스바를 누르거나 '확인'이라고 말할 때까지 기다린다."""
+    def wait_for(self, accept):
+        """accept(신호)가 None 이 아닌 값을 돌려줄 때까지 기다리고 그 값을 돌려준다."""
         while True:  # 이전에 쌓인 신호는 버린다
             try:
                 self.triggers.get_nowait()
@@ -83,9 +85,32 @@ class SortChecker:
             if self.stop_event.is_set():
                 raise Stopped
             try:
-                return self.triggers.get(timeout=0.1)
+                result = accept(self.triggers.get(timeout=0.1))
             except queue.Empty:
-                pass
+                continue
+            if result is not None:
+                return result
+
+    def wait_trigger(self):
+        """스페이스바를 누르거나 '확인'이라고 말할 때까지 기다린다."""
+        self.wait_for(lambda event: True if event in (("key", " "), ("word", CONFIRM_WORD)) else None)
+
+    def _method_for(self, event):
+        kind, value = event
+        for number, method in enumerate(self.sorts, start=1):
+            if (kind == "key" and value == str(number)) or (kind == "word" and value in method.words):
+                return method
+        return None
+
+    def choose_sort(self):
+        """정렬 방법 고르기: 숫자키를 누르거나 정렬 이름을 말한다."""
+        if self.method is None:
+            self.board.lcd("Choose sort",
+                           " ".join(f"{n}{m.lcd_name[:3]}" for n, m in enumerate(self.sorts, start=1)))
+            choices = ", ".join(f"{n}: {m.name}" for n, m in enumerate(self.sorts, start=1))
+            self.say(f"정렬 방법을 골라주세요 ({choices})")
+            self.method = self.wait_for(self._method_for)
+        self.say(f"{self.method.name}을 시작해요!", 2)
 
     # ---------- 카드 읽기 / 등록 ----------
 
@@ -119,7 +144,7 @@ class SortChecker:
     def start(self, cards):
         self.card_list = list(cards)
         self.prev = list(cards)
-        self.steps = self.sort(cards)
+        self.steps = self.method.make_steps(cards)
         self.index = 0
         self.wrongs = 0
         self.done = False
@@ -200,6 +225,7 @@ class SortChecker:
     def run(self):
         try:
             self.board.rgb(OFF)
+            self.choose_sort()
             self.register_cards()
             while not self.done:
                 self.wait_trigger()

@@ -6,6 +6,8 @@ Scratch 프로젝트 `35(final)` (`scratch/35final.sb3`)를 Python으로 옮겼�
 
 지금 들어 있는 정렬 방법은 **버블 정렬**(`bubble`)입니다.
 
+- 시작하면 먼저 **정렬 방법을 고릅니다.** 카메라 창에서 숫자키(`1`: 버블 정렬 …)를 누르거나,
+  정렬 이름(예: "버블")을 말하면 됩니다.
 - 카메라 창에 실시간 영상, 인식한 숫자, 말풍선, LCD/LED 상태가 표시됩니다.
 - 카드를 옮긴 뒤 **스페이스바**를 누르거나 **"확인"**이라고 말하면 카드를 읽습니다.
 - 아두이노의 RGB LED(9·10·11번 핀)와 I2C LCD(16x2)로 결과를 보여줍니다.
@@ -33,8 +35,8 @@ pip install -r requirements.txt
 ## 실행
 
 ```bash
-python main.py                      # 버블 정렬, 기본 카메라, 아두이노 자동으로 찾기
-python main.py --sort bubble        # 정렬 방법 고르기
+python main.py                      # 시작할 때 정렬 방법 고르기, 기본 카메라, 아두이노 자동으로 찾기
+python main.py --sort bubble        # 정렬 방법을 미리 정해서 고르는 단계 건너뛰기
 python main.py --camera 1           # 다른 카메라 쓰기
 python main.py --port COM3          # 아두이노 포트 직접 지정 (맥/리눅스: /dev/ttyACM0)
 python main.py --port none          # 아두이노 없이 실행
@@ -47,7 +49,7 @@ python main.py --camera http://192.168.0.10:8080/video   # 휴대폰 카메라 �
 
 ## 정렬 방법 추가하기
 
-`sorts.py`에 함수를 하나 만들고 `SORTS`에 등록하면 됩니다.
+`sorts.py`에 함수를 하나 만들고 `SORTS`에 `SortMethod`로 등록하면 됩니다.
 함수는 처음 카드 배열을 받아서, 학생이 거쳐야 할 **단계(`Step`) 목록**을 돌려줍니다.
 
 ```python
@@ -72,12 +74,15 @@ def selection_sort(cards):
 
 
 SORTS = {
-    "bubble": bubble_sort,
-    "selection": selection_sort,
+    "bubble": SortMethod("버블 정렬", "Bubble", ("버블", "거품"), bubble_sort),
+    "selection": SortMethod("선택 정렬", "Selection", ("선택",), selection_sort),
 }
 ```
 
-등록한 뒤 `python main.py --sort selection`으로 실행합니다.
+`SortMethod(이름, LCD에 보여줄 영어 이름, 알아들을 말, 단계 만드는 함수)` 순서입니다.
+- `SORTS`에 넣은 순서대로 숫자키가 붙습니다. 위 예시라면 `1`은 버블 정렬, `2`는 선택 정렬입니다.
+- **알아들을 말**은 여러 개 넣을 수 있습니다. 말한 내용에 그중 하나라도 들어 있으면 그 정렬을 고릅니다.
+  음성 모델이 모르는 단어는 무시되니, 잘 못 알아들으면 다른 말을 추가해 보세요.
 `tests/test_checker.py`는 `SORTS`에 있는 모든 정렬을 자동으로 검사해서,
 단계를 끝까지 따라가면 카드가 제대로 정렬되는지 확인합니다.
 

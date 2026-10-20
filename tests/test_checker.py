@@ -38,9 +38,9 @@ class FakeBoard:
         self.lcd_lines = [row0, row1]
 
 
-def make_checker(cards, sort=bubble_sort):
+def make_checker(cards, sort="bubble"):
     checker = SortChecker(FakeView(), FakeBoard(), queue.Queue(), threading.Event(),
-                          sort, num_cards=len(cards))
+                          SORTS, sort=sort, num_cards=len(cards))
     checker._sleep = lambda secs: None
     checker.celebrate = lambda: setattr(checker, "done", True)  # 무지개 반복 대신
     checker.start(cards)
@@ -59,10 +59,10 @@ class SortsTest(unittest.TestCase):
     CASES = [[5, 2, 8, 1, 7, 3, 6, 4], [1, 2, 3, 4], [4, 3, 2, 1], [2, 2, 1], [1]]
 
     def test_steps_sort_the_cards(self):
-        for name, sort in SORTS.items():
+        for name, method in SORTS.items():
             for cards in self.CASES:
                 arr = list(cards)
-                for step in sort(cards):
+                for step in method.make_steps(cards):
                     arr = apply(arr, step)
                 self.assertEqual(arr, sorted(cards), f"{name} {cards}")
 
@@ -118,9 +118,9 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(checker.view.messages, ["카드가 제대로 안보여요!"])
 
     def test_student_follows_every_sort(self):
-        for name, sort in SORTS.items():
+        for name in SORTS:
             cards = [5, 2, 8, 1, 7, 3, 6, 4]
-            checker = make_checker(cards, sort)
+            checker = make_checker(cards, name)
             arr = list(cards)
             while not checker.done:
                 arr = apply(arr, checker.step)
@@ -139,7 +139,7 @@ class CheckTest(unittest.TestCase):
 class RegisterTest(unittest.TestCase):
     def test_register_retries_until_all_cards_seen(self):
         checker = SortChecker(FakeView(), FakeBoard(), queue.Queue(), threading.Event(),
-                              bubble_sort, num_cards=3)
+                              SORTS, sort="bubble", num_cards=3)
         checker._sleep = lambda secs: None
         reads = iter([[("3", 0), ("1", 10)], [("3", 0), ("1", 10), ("2", 20)]])
         checker.view.read_text = lambda: next(reads)
@@ -148,11 +148,52 @@ class RegisterTest(unittest.TestCase):
         self.assertEqual(checker.card_list, [3, 1, 2])
         self.assertEqual(checker.board.lcd_lines, ["Pos 1 <-> 2", "3 ? 1"])
 
+    def test_confirm_by_space_or_voice(self):
+        checker = make_checker([2, 1])
+        checker.triggers.get_nowait = self._raise_empty
+        for event in [("key", " "), ("word", "확인")]:
+            checker.triggers.put(event)
+            checker.wait_trigger()
+
+    @staticmethod
+    def _raise_empty():
+        raise queue.Empty
+
     def test_stop(self):
         checker = make_checker([2, 1])
         checker.stop_event.set()
         with self.assertRaises(Stopped):
             checker.wait_trigger()
+
+
+class ChooseSortTest(unittest.TestCase):
+    def make(self):
+        checker = SortChecker(FakeView(), FakeBoard(), queue.Queue(), threading.Event(), SORTS)
+        checker._sleep = lambda secs: None
+        return checker
+
+    def choose(self, checker, events):
+        """wait_for 가 큐를 비우기 전에 넣은 신호가 사라지지 않도록, 신호를 차례로 흘려보낸다."""
+        events = iter(events)
+        checker.wait_for = lambda accept: next(r for r in map(accept, events) if r is not None)
+        checker.choose_sort()
+
+    def test_choose_by_number_key(self):
+        checker = self.make()
+        self.choose(checker, [("key", " "), ("key", "9"), ("key", "1")])
+        self.assertIs(checker.method, SORTS["bubble"])
+        self.assertEqual(checker.board.lcd_lines[0], "Choose sort")
+
+    def test_choose_by_voice(self):
+        checker = self.make()
+        self.choose(checker, [("word", "확인"), ("word", "버블")])
+        self.assertIs(checker.method, SORTS["bubble"])
+        self.assertIn("버블 정렬을 시작해요!", checker.view.messages)
+
+    def test_preset_sort_skips_question(self):
+        checker = make_checker([2, 1])
+        checker.choose_sort()
+        self.assertFalse(any("골라주세요" in m for m in checker.view.messages))
 
 
 if __name__ == "__main__":
