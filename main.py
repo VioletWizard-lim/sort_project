@@ -13,7 +13,7 @@ from board import Board
 from camera import CameraView, CardReader
 from checker import CONFIRM_WORD, NUM_CARDS, SortChecker
 from sorts import SORTS
-from speech import KeywordListener, ensure_model
+from speech import KeywordListener
 
 
 def parse_args():
@@ -26,8 +26,6 @@ def parse_args():
                         help="아두이노 포트 (auto / COM3 / /dev/ttyACM0 / none)")
     parser.add_argument("--cards", type=int, default=NUM_CARDS,
                         help=f"카드 장수 (기본: {NUM_CARDS})")
-    parser.add_argument("--vosk-model", default="models/vosk-model-small-ko-0.22",
-                        help="Vosk 한국어 음성 모델 폴더")
     parser.add_argument("--font", default=None, help="말풍선에 쓸 한글 글꼴 파일")
     parser.add_argument("--gpu", action="store_true", help="OCR에 GPU 사용")
     return parser.parse_args()
@@ -40,7 +38,6 @@ def main():
     stop_event = threading.Event()
     triggers = queue.Queue()
 
-    ensure_model(args.vosk_model)  # 음성 모델이 없으면 프로그램을 켜기 전에 먼저 받는다
     board = Board(args.port)
     reader = CardReader(gpu=args.gpu)
     view = CameraView(source, reader, board, triggers, stop_event, font_path=args.font)
@@ -48,7 +45,7 @@ def main():
                           sort=args.sort, num_cards=args.cards)
 
     words = [CONFIRM_WORD] + [word for method in SORTS.values() for word in method.words]
-    KeywordListener(args.vosk_model, words, triggers, stop_event).start()
+    KeywordListener(words, triggers, stop_event).start()
 
     def run_checker():
         try:
