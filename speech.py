@@ -1,7 +1,7 @@
 """음성 인식: 정해 둔 말('확인', 정렬 이름 등)을 알아들으면 알려준다.
 
 인터넷 없이 동작하는 Vosk 한국어 모델을 사용한다.
-모델이 없으면 처음 한 번 인터넷에서 받아 온다.
+모델이 없으면 처음 한 번 인터넷에서 받아 온다. (main.py 가 프로그램을 켜기 전에 ensure_model 을 부른다)
 모델이나 마이크가 없으면 음성 인식 없이 실행한다.
 """
 import json
@@ -53,7 +53,7 @@ class KeywordListener(threading.Thread):
         except ImportError as e:
             print(f"[음성] 라이브러리가 없어 음성 인식 없이 실행합니다 ({e})")
             return
-        if not ensure_model(self.model_path):
+        if not os.path.isdir(self.model_path):
             print(f"[음성] 모델이 없어 음성 인식 없이 실행합니다: {self.model_path}")
             return
 

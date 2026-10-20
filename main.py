@@ -13,7 +13,7 @@ from board import Board
 from camera import CameraView, CardReader
 from checker import CONFIRM_WORD, NUM_CARDS, SortChecker
 from sorts import SORTS
-from speech import KeywordListener
+from speech import KeywordListener, ensure_model
 
 
 def parse_args():
@@ -40,6 +40,7 @@ def main():
     stop_event = threading.Event()
     triggers = queue.Queue()
 
+    ensure_model(args.vosk_model)  # 음성 모델이 없으면 프로그램을 켜기 전에 먼저 받는다
     board = Board(args.port)
     reader = CardReader(gpu=args.gpu)
     view = CameraView(source, reader, board, triggers, stop_event, font_path=args.font)
