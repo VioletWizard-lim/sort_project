@@ -14,16 +14,20 @@ import time
 
 LCD_COLS = 16
 READY = "READY sort_board"
+BOOT = "BOOT sort_board"
 
 
-def wait_ready(ser, timeout=4.0):
-    """보드의 준비 신호를 기다린다. 받으면 그 줄을, 못 받으면 None을 돌려준다."""
+def wait_ready(ser, timeout=5.0, received=None):
+    """보드의 준비 신호를 기다린다. 받으면 그 줄을, 못 받으면 None을 돌려준다.
+    received 리스트를 주면 그동안 받은 다른 줄들을 담아 준다."""
     deadline = time.time() + timeout
     asked = False
     while time.time() < deadline:
         line = ser.readline().decode("ascii", "replace").strip()
         if line.startswith(READY):
             return line
+        if line and received is not None:
+            received.append(line)
         if not asked and time.time() > deadline - timeout / 2:
             ser.write(b"?\n")  # 리셋이 안 되는 보드도 있으니 한 번 물어본다
             asked = True
@@ -47,10 +51,11 @@ def _likely_ports_first(ports):
 
 
 def open_board(port, baud):
-    """포트를 열고 준비 신호를 확인한다. (serial 객체, 준비 신호 줄 또는 None)"""
+    """포트를 열고 준비 신호를 확인한다. (serial 객체, 준비 신호 줄 또는 None, 받은 다른 줄들)"""
     import serial
     ser = serial.Serial(port, baud, timeout=0.5)  # 포트를 열면 우노가 리셋된다
-    return ser, wait_ready(ser)
+    received = []
+    return ser, wait_ready(ser, received=received), received
 
 
 class Board:
@@ -76,7 +81,7 @@ class Board:
         for device in ports:
             print(f"[보드] {device} 확인 중...")
             try:
-                ser, ready = open_board(device, baud)
+                ser, ready, received = open_board(device, baud)
             except Exception as e:
                 print(f"[보드] {device} 를 열 수 없습니다 ({e})")
                 continue
@@ -88,7 +93,14 @@ class Board:
                 self._self_test()
                 return
             ser.close()
-            print(f"[보드] {device} 에서 준비 신호가 없습니다.")
+            if BOOT in received:
+                print(f"[보드] {device}: sort_board 는 켜졌지만 LCD를 찾다가 멈췄습니다.")
+                print("       LCD 배선(SDA→A4, SCL→A5, VCC→5V, GND)과 접촉을 확인하세요.")
+            elif received:
+                print(f"[보드] {device} 에서 준비 신호 대신 이런 내용을 받았습니다: {received[:3]}")
+                print("       다른 프로그램(예: Scratch용 펌웨어)이 올라가 있는 것 같습니다.")
+            else:
+                print(f"[보드] {device} 에서 아무 신호도 없습니다.")
 
         print("[보드] sort_board 프로그램이 올라간 보드를 찾지 못했습니다.")
         print("       Arduino IDE로 arduino/sort_board/sort_board.ino 를 보드에 업로드했는지 확인하세요.")

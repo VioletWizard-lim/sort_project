@@ -4,7 +4,8 @@
 //   C                LCD 지우기
 //   P,col,row,text   LCD (col, row) 위치에 글자 쓰기
 //   ?                준비 신호 다시 보내기
-// 켜지면 "READY sort_board LCD=0x27" 처럼 준비 신호를 보낸다. (LCD를 못 찾으면 LCD=none)
+// 켜지면 바로 "BOOT sort_board" 를 보내고, LCD를 찾은 뒤 "READY sort_board LCD=0x27" 처럼
+// 준비 신호를 보낸다. (LCD를 못 찾으면 LCD=none)
 //
 // 필요한 라이브러리: LiquidCrystal I2C (Frank de Brabander)
 
@@ -70,12 +71,17 @@ void handle(const String &cmd) {
 
 void setup() {
   Serial.begin(9600);
+  Serial.println("BOOT sort_board");
   pinMode(PIN_R, OUTPUT);
   pinMode(PIN_G, OUTPUT);
   pinMode(PIN_B, OUTPUT);
   setRGB(0, 0, 0);
 
   Wire.begin();
+#if defined(WIRE_HAS_TIMEOUT)
+  // LCD 배선이 불안정해도 I2C 통신에서 멈추지 않도록 시간 제한을 둔다
+  Wire.setWireTimeout(3000, true);
+#endif
   lcdAddress = findI2CDevice();
   if (lcdAddress) {
     lcd = new LiquidCrystal_I2C(lcdAddress, 16, 2);
