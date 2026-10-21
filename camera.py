@@ -25,16 +25,30 @@ FONT_CANDIDATES = [
 
 
 class CardReader:
-    """EasyOCR로 화면 전체에서 숫자를 읽는다."""
+    """EasyOCR로 화면 전체에서 숫자를 읽는다.
+
+    EasyOCR 기본값(min_size=20)은 작은 글자 영역을 버려서, 한 자리 숫자 카드를 자주 놓친다.
+    그래서 작은 글자도 받고, 그래도 카드 장수가 모자라면 2배로 확대해서 한 번 더 읽는다.
+    (확대해서 읽으면 더 정확하지만 3~4배 느리다)
+    """
+    DIGITS = "0123456789"
+    MIN_CONFIDENCE = 0.3  # 이보다 자신 없는 결과는 배경 잡동사니로 보고 버린다
 
     def __init__(self, gpu=False):
         import easyocr
         print("[OCR] 글자 인식 모델을 불러오는 중... (처음에는 내려받느라 오래 걸려요)")
         self._reader = easyocr.Reader(["en"], gpu=gpu)
 
-    def read(self, frame):
-        """[(상자 꼭짓점 4개, 글자, 정확도), ...]"""
-        return self._reader.readtext(frame, allowlist="0123456789")
+    def _read(self, frame, **options):
+        results = self._reader.readtext(frame, allowlist=self.DIGITS, min_size=5, **options)
+        return [r for r in results if r[1].isdigit() and r[2] >= self.MIN_CONFIDENCE]
+
+    def read(self, frame, expected=None):
+        """[(상자 꼭짓점 4개, 글자, 정확도), ...]  expected: 보여야 할 카드 장수"""
+        results = self._read(frame)
+        if expected is not None and len(results) != expected:
+            results = self._read(frame, mag_ratio=2, text_threshold=0.5, low_text=0.3)
+        return results
 
 
 def _load_font(path, size):
@@ -66,15 +80,15 @@ class CameraView:
     def say(self, message):
         self._message = message
 
-    def read_text(self):
-        """지금 화면의 글자를 읽어 [(글자, 왼쪽 x 좌표), ...] 로 돌려준다."""
+    def read_text(self, expected=None):
+        """지금 화면의 글자를 읽어 [(글자, 왼쪽 x 좌표), ...] 로 돌려준다. expected: 보여야 할 카드 장수"""
         with self._lock:
             frame = None if self._frame is None else self._frame.copy()
         if frame is None:
             return []
         self._reading = True
         try:
-            results = self.reader.read(frame)
+            results = self.reader.read(frame, expected)
         finally:
             self._reading = False
         self._boxes = results
