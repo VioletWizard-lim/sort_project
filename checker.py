@@ -117,7 +117,8 @@ class SortChecker:
     def read_cards(self):
         """카드 읽기: 카메라로 숫자를 읽고 왼쪽부터 순서대로 정렬한 리스트를 돌려준다."""
         cards = []
-        for text, x in self.view.read_text():
+        expected = len(self.card_list) or self.num_cards
+        for text, x in self.view.read_text(expected):
             value = parse_card(text)
             if value is None:
                 continue

@@ -22,7 +22,7 @@ class FakeView:
         if message:
             self.messages.append(message)
 
-    def read_text(self):
+    def read_text(self, expected=None):
         return []
 
 
@@ -74,7 +74,7 @@ class SortsTest(unittest.TestCase):
 class ReadCardsTest(unittest.TestCase):
     def test_sorted_by_x_and_filtered(self):
         checker = make_checker([3, 1, 2])
-        checker.view.read_text = lambda: [("2", 300), ("9", 50), ("3", 10), ("1", 200), ("abc", 5)]
+        checker.view.read_text = lambda expected: [("2", 300), ("9", 50), ("3", 10), ("1", 200), ("abc", 5)]
         self.assertEqual(checker.read_cards(), [3, 1, 2])
 
 
@@ -142,7 +142,7 @@ class RegisterTest(unittest.TestCase):
                               SORTS, sort="bubble", num_cards=3)
         checker._sleep = lambda secs: None
         reads = iter([[("3", 0), ("1", 10)], [("3", 0), ("1", 10), ("2", 20)]])
-        checker.view.read_text = lambda: next(reads)
+        checker.view.read_text = lambda expected: next(reads)
         checker.wait_trigger = lambda: None
         checker.register_cards()
         self.assertEqual(checker.card_list, [3, 1, 2])
