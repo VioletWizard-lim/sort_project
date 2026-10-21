@@ -1,7 +1,7 @@
 """카메라 창과 글자 인식(OCR).
 
 Scratch의 카메라 인식 화면 대신 OpenCV 창에 카메라 영상을 띄운다.
-창에는 인식한 숫자 상자, 말풍선, LCD/LED 상태가 함께 표시된다.
+창에는 인식한 숫자 상자, 말풍선, LCD/LED 상태, 마이크 소리 크기가 함께 표시된다.
     스페이스바  : 확인 (카드 읽기)
     숫자키      : 정렬 방법 고르기
     q / ESC     : 종료
@@ -76,6 +76,7 @@ class CameraView:
         self._boxes = []
         self._message = ""
         self._reading = False
+        self.listener = None  # 음성 인식 (마이크 소리 크기를 그릴 때 쓴다)
 
     def say(self, message):
         self._message = message
@@ -115,12 +116,30 @@ class CameraView:
         cv2.circle(image, (320, h - 42), 22, (b, g, r), -1)
         cv2.circle(image, (320, h - 42), 22, (255, 255, 255), 2)
 
+        self._draw_mic(image)
+
         if self._reading:
             cv2.putText(image, "Reading...", (w - 170, 35),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 200, 255), 2)
         if self._message and self.font is not None:
             image = self._draw_bubble(image, self._message)
         return image
+
+    def _draw_mic(self, image):
+        """마이크 소리 크기 막대. 흰 선(말소리 기준)을 넘으면 초록색이 되고 말소리로 받아들인다."""
+        if self.listener is None or not self.listener.active:
+            return
+        detector = self.listener.detector
+        h, w = image.shape[:2]
+        x0, y0, width, height = w - 230, h - 40, 200, 20
+        scale = width / max(detector.threshold * 3, 1)  # 기준이 막대의 1/3 지점에 오게
+        fill = int(min(detector.level * scale, width))
+        color = (0, 220, 0) if detector.hearing else (180, 180, 180)
+        cv2.putText(image, "MIC", (x0 - 50, y0 + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        cv2.rectangle(image, (x0, y0), (x0 + width, y0 + height), (60, 60, 60), -1)
+        cv2.rectangle(image, (x0, y0), (x0 + fill, y0 + height), color, -1)
+        mark = x0 + int(detector.threshold * scale)
+        cv2.line(image, (mark, y0 - 4), (mark, y0 + height + 4), (255, 255, 255), 2)
 
     def _draw_bubble(self, image, message):
         from PIL import Image, ImageDraw
