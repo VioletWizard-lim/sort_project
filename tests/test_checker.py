@@ -190,6 +190,11 @@ class ChooseSortTest(unittest.TestCase):
         self.assertIs(checker.method, SORTS["bubble"])
         self.assertIn("버블 정렬을 시작해요!", checker.view.messages)
 
+    def test_choose_by_saying_number(self):
+        checker = self.make()
+        self.choose(checker, [("word", "확인"), ("word", "1번")])
+        self.assertIs(checker.method, SORTS["bubble"])
+
     def test_preset_sort_skips_question(self):
         checker = make_checker([2, 1])
         checker.choose_sort()

@@ -12,6 +12,12 @@ from sorts import apply
 NUM_CARDS = 8
 CONFIRM_WORD = "확인"
 
+
+def number_words(number):
+    """'1번'처럼 번호로 고를 때 알아들을 말. 구글은 '일번'을 보통 '1번'으로 받아 적는다.
+    ('이번'은 평소에 자주 쓰는 말이라 한글 숫자는 쓰지 않는다)"""
+    return [f"{number}번"]
+
 OFF = (0, 0, 0)
 BLUE = (0, 0, 255)
 RED = (255, 0, 0)
@@ -98,7 +104,8 @@ class SortChecker:
     def _method_for(self, event):
         kind, value = event
         for number, method in enumerate(self.sorts, start=1):
-            if (kind == "key" and value == str(number)) or (kind == "word" and value in method.words):
+            if (kind == "key" and value == str(number)) or \
+                    (kind == "word" and (value in method.words or value in number_words(number))):
                 return method
         return None
 
@@ -107,8 +114,8 @@ class SortChecker:
         if self.method is None:
             self.board.lcd("Choose sort",
                            " ".join(f"{n}{m.lcd_name[:3]}" for n, m in enumerate(self.sorts, start=1)))
-            choices = ", ".join(f"{n}: {m.name}" for n, m in enumerate(self.sorts, start=1))
-            self.say(f"정렬 방법을 골라주세요 ({choices})")
+            choices = ", ".join(f"{n}번 {m.name}" for n, m in enumerate(self.sorts, start=1))
+            self.say(f"정렬 방법을 골라주세요. ({choices}) 숫자키를 누르거나 '1번', '버블 정렬'처럼 말해주세요")
             self.method = self.wait_for(self._method_for)
         self.say(f"{self.method.name}을 시작해요!", 2)
 
