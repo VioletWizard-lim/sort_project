@@ -5,21 +5,52 @@
     L,r,g,b          RGB LED 색 (0~255)
     C                LCD 지우기
     P,col,row,text   LCD (col, row) 위치에 글자 쓰기
+    ?                준비 신호 요청
+보드는 켜지면 "READY sort_board LCD=0x27" 같은 준비 신호를 보낸다.
 보드를 찾지 못하면 콘솔과 카메라 창에만 LED/LCD 상태를 보여준다.
 """
 import threading
 import time
 
 LCD_COLS = 16
+READY = "READY sort_board"
 
 
-def find_arduino_port():
-    from serial.tools import list_ports
-    for port in list_ports.comports():
-        desc = f"{port.description} {port.manufacturer or ''}".lower()
-        if any(name in desc for name in ("arduino", "ch340", "ch910", "usb serial", "usb-serial")):
-            return port.device
+def wait_ready(ser, timeout=4.0):
+    """보드의 준비 신호를 기다린다. 받으면 그 줄을, 못 받으면 None을 돌려준다."""
+    deadline = time.time() + timeout
+    asked = False
+    while time.time() < deadline:
+        line = ser.readline().decode("ascii", "replace").strip()
+        if line.startswith(READY):
+            return line
+        if not asked and time.time() > deadline - timeout / 2:
+            ser.write(b"?\n")  # 리셋이 안 되는 보드도 있으니 한 번 물어본다
+            asked = True
     return None
+
+
+# 아두이노 우노와 호환 보드에 쓰이는 USB 칩 제조사 번호 (Arduino, CH340, FTDI, CP210x)
+ARDUINO_VIDS = {0x2341, 0x2A03, 0x1A86, 0x0403, 0x10C4}
+
+
+def _likely_ports_first(ports):
+    """아두이노처럼 보이는 포트를 먼저 확인한다. 블루투스 포트는 뺀다.
+    한국어 윈도우에서는 정품 우노가 'USB 직렬 장치'로 보이므로 이름보다 USB 번호(VID)를 먼저 본다."""
+    def score(p):
+        desc = f"{p.description} {p.manufacturer or ''}".lower()
+        if p.vid in ARDUINO_VIDS or any(n in desc for n in ("arduino", "ch340", "usb serial", "usb-serial")):
+            return 0
+        return 1
+    return [p.device for p in sorted(ports, key=score)
+            if not any(n in (p.description or "").lower() for n in ("bluetooth", "블루투스"))]
+
+
+def open_board(port, baud):
+    """포트를 열고 준비 신호를 확인한다. (serial 객체, 준비 신호 줄 또는 None)"""
+    import serial
+    ser = serial.Serial(port, baud, timeout=0.5)  # 포트를 열면 우노가 리셋된다
+    return ser, wait_ready(ser)
 
 
 class Board:
@@ -33,18 +64,42 @@ class Board:
             print("[보드] 아두이노 없이 실행합니다.")
             return
         try:
-            import serial
-            if port == "auto":
-                port = find_arduino_port()
-                if port is None:
-                    print("[보드] 아두이노를 찾지 못해 보드 없이 실행합니다. (--port 로 지정 가능)")
-                    return
-            self._serial = serial.Serial(port, baud, timeout=1)
-            time.sleep(2)  # 포트를 열면 우노가 리셋되므로 잠시 기다린다
-            print(f"[보드] {port} 에 연결했습니다.")
-        except Exception as e:
-            print(f"[보드] 연결 실패 ({e}). 보드 없이 실행합니다.")
-            self._serial = None
+            from serial.tools import list_ports
+            ports = [port] if port != "auto" else _likely_ports_first(list_ports.comports())
+        except ImportError as e:
+            print(f"[보드] pyserial 이 없어 보드 없이 실행합니다 ({e})")
+            return
+        if not ports:
+            print("[보드] 연결된 보드(COM 포트)가 없습니다. USB 케이블을 확인하세요. 보드 없이 실행합니다.")
+            return
+
+        for device in ports:
+            print(f"[보드] {device} 확인 중...")
+            try:
+                ser, ready = open_board(device, baud)
+            except Exception as e:
+                print(f"[보드] {device} 를 열 수 없습니다 ({e})")
+                continue
+            if ready:
+                self._serial = ser
+                print(f"[보드] {device} 에 연결했습니다. ({ready})")
+                if ready.endswith("LCD=none"):
+                    print("[보드] LCD를 찾지 못했습니다. LCD 배선(SDA→A4, SCL→A5, VCC, GND)을 확인하세요.")
+                self._self_test()
+                return
+            ser.close()
+            print(f"[보드] {device} 에서 준비 신호가 없습니다.")
+
+        print("[보드] sort_board 프로그램이 올라간 보드를 찾지 못했습니다.")
+        print("       Arduino IDE로 arduino/sort_board/sort_board.ino 를 보드에 업로드했는지 확인하세요.")
+        print("       (Arduino IDE의 시리얼 모니터가 열려 있으면 연결할 수 없으니 닫아 주세요.)")
+        print("       보드 없이 실행합니다.")
+
+    def _self_test(self):
+        """연결되면 LED를 빨강, 초록, 파랑으로 한 번씩 켜서 배선을 확인한다."""
+        for color in ((255, 0, 0), (0, 255, 0), (0, 0, 255), (0, 0, 0)):
+            self.rgb(color)
+            time.sleep(0.3)
 
     def _send(self, *lines):
         if self._serial is None:
