@@ -16,10 +16,10 @@ LANGUAGE = "ko-KR"
 
 
 def find_keyword(text, words):
-    """받아 적은 글에서 정해 둔 말을 찾는다. 없으면 None."""
-    text = text.replace(" ", "")
+    """받아 적은 글에서 정해 둔 말을 찾는다. 없으면 None. (영어는 대소문자를 가리지 않는다)"""
+    text = text.replace(" ", "").lower()
     for word in words:
-        if word in text:
+        if word.lower() in text:
             return word
     return None
 
@@ -141,16 +141,26 @@ class KeywordListener(threading.Thread):
             self.active = False
 
     def _recognize(self, recognizer, sr, segment):
+        # 앞뒤에 0.3초씩 조용한 소리를 붙이면 짧은 한 단어도 조금 더 잘 알아듣는다
+        pad = bytes(SAMPLE_RATE * 2 * 3 // 10)
         try:
-            text = recognizer.recognize_google(sr.AudioData(segment, SAMPLE_RATE, 2),
-                                               language=LANGUAGE)
+            # show_all: 가장 그럴듯한 하나가 아니라 구글이 생각한 후보를 모두 받는다
+            result = recognizer.recognize_google(sr.AudioData(pad + segment + pad, SAMPLE_RATE, 2),
+                                                 language=LANGUAGE, show_all=True)
         except sr.UnknownValueError:
             print("[음성] 소리는 들었지만 무슨 말인지 알아듣지 못했어요.")
             return
         except sr.RequestError as e:
             print(f"[음성] 구글 음성 인식에 연결하지 못했습니다. 인터넷을 확인하세요 ({e})")
             return
-        print(f"[음성] 들은 말: {text}")
-        word = find_keyword(text, self.words)
-        if word:
-            self.triggers.put(("word", word))
+        candidates = [a["transcript"] for a in result.get("alternative", []) if a.get("transcript")]
+        if not candidates:
+            print("[음성] 소리는 들었지만 무슨 말인지 알아듣지 못했어요.")
+            return
+        others = f"  (다른 후보: {', '.join(candidates[1:4])})" if len(candidates) > 1 else ""
+        print(f"[음성] 들은 말: {candidates[0]}{others}")
+        for text in candidates:
+            word = find_keyword(text, self.words)
+            if word:
+                self.triggers.put(("word", word))
+                return
