@@ -45,7 +45,9 @@ def main():
                           sort=args.sort, num_cards=args.cards)
 
     words = [CONFIRM_WORD] + [word for method in SORTS.values() for word in method.words]
-    KeywordListener(words, triggers, stop_event).start()
+    listener = KeywordListener(words, triggers, stop_event)
+    view.listener = listener
+    listener.start()
 
     def run_checker():
         try:
