@@ -30,13 +30,20 @@ def wait_ready(ser, timeout=4.0):
     return None
 
 
+# 아두이노 우노와 호환 보드에 쓰이는 USB 칩 제조사 번호 (Arduino, CH340, FTDI, CP210x)
+ARDUINO_VIDS = {0x2341, 0x2A03, 0x1A86, 0x0403, 0x10C4}
+
+
 def _likely_ports_first(ports):
-    """아두이노처럼 보이는 포트(CH340 등)를 먼저 확인한다. 블루투스 포트는 뺀다."""
+    """아두이노처럼 보이는 포트를 먼저 확인한다. 블루투스 포트는 뺀다.
+    한국어 윈도우에서는 정품 우노가 'USB 직렬 장치'로 보이므로 이름보다 USB 번호(VID)를 먼저 본다."""
     def score(p):
         desc = f"{p.description} {p.manufacturer or ''}".lower()
-        return 0 if any(n in desc for n in ("arduino", "ch340", "ch910", "usb serial", "usb-serial")) else 1
+        if p.vid in ARDUINO_VIDS or any(n in desc for n in ("arduino", "ch340", "usb serial", "usb-serial")):
+            return 0
+        return 1
     return [p.device for p in sorted(ports, key=score)
-            if "bluetooth" not in f"{p.description}".lower()]
+            if not any(n in (p.description or "").lower() for n in ("bluetooth", "블루투스"))]
 
 
 def open_board(port, baud):
