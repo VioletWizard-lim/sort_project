@@ -63,7 +63,25 @@ def open_board(port, baud):
     ser.rts = False
     ser.open()
     received = []
-    return ser, wait_ready(ser, received=received), received
+    ready = wait_ready(ser, timeout=2.5, received=received)
+    if ready or received:
+        return ser, ready, received
+
+    # 아무 응답이 없을 때
+    # - ESP32 보드 자체 USB(ESP32-S2/S3/C3)는 DTR 이 켜져야 글자를 보낸다.
+    #   (보통 ESP32 는 RTS 가 꺼져 있으면 DTR 을 켜도 다시 시작하지 않는다)
+    # - Thonny 가 MicroPython 을 멈춰 둔 상태(raw REPL)로 남아 있으면 아무 대답도 하지 않는다.
+    #   Ctrl-C(멈춤), Ctrl-B(raw REPL 나가기), Ctrl-D(소프트 리셋)를 보내 main.py 를 다시 실행시킨다.
+    #   아두이노에는 알아듣지 못하는 한 줄로 지나간다. (끝의 줄바꿈으로 그 줄을 끝낸다)
+    try:
+        ser.dtr = True
+    except Exception:  # DTR 을 지원하지 않는 장치도 있다
+        pass
+    for key in (b"\x03\x03", b"\x02", b"\x04", b"\n"):
+        ser.write(key)
+        time.sleep(0.2)
+    ready = wait_ready(ser, timeout=5.0, received=received)
+    return ser, ready, received
 
 
 class Board:
