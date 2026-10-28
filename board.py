@@ -1,6 +1,7 @@
-"""아두이노 우노 보드 (RGB LED 9·10·11번 핀, I2C LCD 16x2).
+"""RGB LED 와 I2C LCD(16x2)가 연결된 보드 (ESP32 또는 아두이노 우노).
 
-보드에는 arduino/sort_board/sort_board.ino 를 올려야 한다.
+ESP32 (MicroPython) 에는 Thonny 로 esp32/main.py 를 main.py 로 저장하고,
+아두이노에는 arduino/sort_board/sort_board.ino 를 업로드한다. 둘 다 같은 명령을 알아듣는다.
 시리얼로 한 줄씩 명령을 보낸다.
     L,r,g,b          RGB LED 색 (0~255)
     C                LCD 지우기
@@ -20,22 +21,23 @@ BOOT = "BOOT sort_board"
 def wait_ready(ser, timeout=5.0, received=None):
     """보드의 준비 신호를 기다린다. 받으면 그 줄을, 못 받으면 None을 돌려준다.
     received 리스트를 주면 그동안 받은 다른 줄들을 담아 준다."""
-    deadline = time.time() + timeout
-    asked = False
-    while time.time() < deadline:
+    start = time.time()
+    ask_at = [start + 0.3, start + timeout / 2]  # 바로 한 번, 응답이 없으면 중간에 한 번 더 묻는다
+    while time.time() < start + timeout:
+        if ask_at and time.time() >= ask_at[0]:
+            ser.write(b"?\n")
+            ask_at.pop(0)
         line = ser.readline().decode("ascii", "replace").strip()
         if line.startswith(READY):
             return line
         if line and received is not None:
             received.append(line)
-        if not asked and time.time() > deadline - timeout / 2:
-            ser.write(b"?\n")  # 리셋이 안 되는 보드도 있으니 한 번 물어본다
-            asked = True
     return None
 
 
-# 아두이노 우노와 호환 보드에 쓰이는 USB 칩 제조사 번호 (Arduino, CH340, FTDI, CP210x)
-ARDUINO_VIDS = {0x2341, 0x2A03, 0x1A86, 0x0403, 0x10C4}
+# 아두이노 우노, ESP32 와 호환 보드에 쓰이는 USB 칩 제조사 번호
+# (Arduino, CH340/CH9102, FTDI, CP210x, Espressif 내장 USB)
+ARDUINO_VIDS = {0x2341, 0x2A03, 0x1A86, 0x0403, 0x10C4, 0x303A}
 
 
 def _likely_ports_first(ports):
@@ -53,13 +55,19 @@ def _likely_ports_first(ports):
 def open_board(port, baud):
     """포트를 열고 준비 신호를 확인한다. (serial 객체, 준비 신호 줄 또는 None, 받은 다른 줄들)"""
     import serial
-    ser = serial.Serial(port, baud, timeout=0.5)  # 포트를 열면 우노가 리셋된다
+    ser = serial.Serial()
+    ser.port, ser.baudrate, ser.timeout = port, baud, 0.5
+    # ESP32 는 포트를 열 때 DTR/RTS 가 켜져 있으면 리셋/다운로드 모드에 붙잡혀 멈춘다.
+    # 둘 다 끈 채로 열면 보드가 다시 시작하지 않으므로, 준비 신호는 '?' 로 물어서 받는다.
+    ser.dtr = False
+    ser.rts = False
+    ser.open()
     received = []
     return ser, wait_ready(ser, received=received), received
 
 
 class Board:
-    def __init__(self, port="auto", baud=9600):
+    def __init__(self, port="auto", baud=115200):
         self.led = (0, 0, 0)
         self.lcd_lines = ["", ""]
         self._lock = threading.Lock()
@@ -96,6 +104,10 @@ class Board:
             if BOOT in received:
                 print(f"[보드] {device}: sort_board 는 켜졌지만 LCD를 찾다가 멈췄습니다.")
                 print("       LCD 배선(SDA→A4, SCL→A5, VCC→5V, GND)과 접촉을 확인하세요.")
+            elif any(">>>" in line for line in received):
+                print(f"[보드] {device}: ESP32 에 MicroPython 은 있지만 main.py 가 실행되고 있지 않습니다.")
+                print("       Thonny 로 esp32/main.py 를 'MicroPython 장치'에 main.py 로 저장했는지 확인하고,")
+                print("       Thonny 를 닫은 뒤 ESP32 의 EN(리셋) 버튼을 한 번 누르세요.")
             elif received:
                 print(f"[보드] {device} 에서 준비 신호 대신 이런 내용을 받았습니다: {received[:3]}")
                 print("       다른 프로그램(예: Scratch용 펌웨어)이 올라가 있는 것 같습니다.")
@@ -103,8 +115,9 @@ class Board:
                 print(f"[보드] {device} 에서 아무 신호도 없습니다.")
 
         print("[보드] sort_board 프로그램이 올라간 보드를 찾지 못했습니다.")
-        print("       Arduino IDE로 arduino/sort_board/sort_board.ino 를 보드에 업로드했는지 확인하세요.")
-        print("       (Arduino IDE의 시리얼 모니터가 열려 있으면 연결할 수 없으니 닫아 주세요.)")
+        print("       ESP32(MicroPython): Thonny 로 esp32/main.py 를 ESP32 에 main.py 로 저장했는지 확인하세요.")
+        print("       아두이노: Arduino IDE 로 arduino/sort_board/sort_board.ino 를 업로드했는지 확인하세요.")
+        print("       (Thonny 나 Arduino IDE 가 보드에 연결된 채로 열려 있으면 연결할 수 없으니 닫아 주세요.)")
         print("       보드 없이 실행합니다.")
 
     def _self_test(self):
