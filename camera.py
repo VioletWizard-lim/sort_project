@@ -60,6 +60,19 @@ def _load_font(path, size):
     return None
 
 
+def _wrap(draw, message, font, max_width):
+    """말풍선이 창 밖으로 나가지 않게 띄어쓰기 단위로 줄을 바꾼다."""
+    lines, line = [], ""
+    for word in message.split(" "):
+        candidate = f"{line} {word}" if line else word
+        if line and draw.textlength(candidate, font=font) > max_width:
+            lines.append(line)
+            line = word
+        else:
+            line = candidate
+    return lines + [line]
+
+
 class CameraView:
     def __init__(self, source, reader, board, triggers, stop_event, font_path=None):
         self.cap = cv2.VideoCapture(source)
@@ -145,10 +158,11 @@ class CameraView:
         from PIL import Image, ImageDraw
         pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         draw = ImageDraw.Draw(pil)
-        left, top, right, bottom = draw.textbbox((20, 20), message, font=self.font)
+        text = "\n".join(_wrap(draw, message, self.font, pil.width - 60))
+        left, top, right, bottom = draw.multiline_textbbox((20, 20), text, font=self.font, spacing=6)
         draw.rounded_rectangle((left - 12, top - 10, right + 12, bottom + 10),
                                radius=12, fill="white", outline="black", width=2)
-        draw.text((20, 20), message, font=self.font, fill="black")
+        draw.multiline_text((20, 20), text, font=self.font, fill="black", spacing=6)
         return cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
     # ---------- 메인 반복 (메인 스레드에서 실행) ----------

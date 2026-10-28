@@ -11,7 +11,7 @@ import traceback
 
 from board import Board
 from camera import CameraView, CardReader
-from checker import CONFIRM_WORD, NUM_CARDS, SortChecker
+from checker import CONFIRM_WORD, NUM_CARDS, SortChecker, number_words
 from sorts import SORTS
 from speech import KeywordListener
 
@@ -45,6 +45,7 @@ def main():
                           sort=args.sort, num_cards=args.cards)
 
     words = [CONFIRM_WORD] + [word for method in SORTS.values() for word in method.words]
+    words += [word for number in range(1, len(SORTS) + 1) for word in number_words(number)]
     listener = KeywordListener(words, triggers, stop_event)
     view.listener = listener
     listener.start()

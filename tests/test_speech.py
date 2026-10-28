@@ -28,6 +28,8 @@ class FindKeywordTest(unittest.TestCase):
         self.assertEqual(find_keyword("확인", WORDS), "확인")
         self.assertEqual(find_keyword("네 확인했어요", WORDS), "확인")
         self.assertEqual(find_keyword("버블 정렬", WORDS), "버블")
+        self.assertEqual(find_keyword("Bubble sort", WORDS + ["bubble"]), "bubble")
+        self.assertEqual(find_keyword("1번이요", WORDS + ["1번"]), "1번")
 
     def test_other_speech_is_ignored(self):
         self.assertIsNone(find_keyword("안녕하세요 선생님", WORDS))

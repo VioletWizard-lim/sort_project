@@ -57,5 +57,5 @@ def bubble_sort(cards):
 
 
 SORTS = {
-    "bubble": SortMethod("버블 정렬", "Bubble", ("버블", "거품"), bubble_sort),
+    "bubble": SortMethod("버블 정렬", "Bubble", ("버블", "거품", "bubble"), bubble_sort),
 }

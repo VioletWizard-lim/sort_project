@@ -37,22 +37,43 @@ Scratch의 음성 인식 확장처럼 **구글 음성 인식**을 사용하므�
 - 소리는 들었지만 구글이 알아듣지 못하면 `[음성] 소리는 들었지만 무슨 말인지 알아듣지 못했어요.`가 나옵니다.
   마이크에 조금 더 가까이, 또박또박 말해 보세요.
 
-### 아두이노
+### 보드: ESP32 (MicroPython, Thonny)
+1. **배선** (ESP32 DevKit, WROOM-32 기준)
+
+   | 부품 | ESP32 핀 |
+   |---|---|
+   | RGB LED R / G / B | **25 / 26 / 27** (각각 220Ω 저항), 공통 다리 → GND |
+   | LCD SDA / SCL | **21 / 22** |
+   | LCD VCC / GND | 5V(VIN) / GND |
+
+   ESP32의 6~11번 핀은 내부 플래시용이라 쓰면 안 됩니다.
+2. Thonny 오른쪽 아래에서 인터프리터를 **MicroPython (ESP32)**로 고릅니다.
+   ESP32에 MicroPython이 없으면 같은 메뉴의 **MicroPython 설치 또는 업데이트**로 먼저 설치합니다.
+3. Thonny에서 `esp32/main.py`를 열고 **파일 → 다른 이름으로 저장 → MicroPython 장치**에 `main.py`로 저장합니다.
+   (처음 한 번, 그리고 `esp32/main.py`가 바뀌었을 때만 하면 됩니다)
+4. **Thonny를 닫고** ESP32의 **EN(리셋) 버튼**을 한 번 누릅니다. LCD에 `Ready`가 나오면 준비 끝입니다.
+   Thonny가 ESP32에 연결된 채로 열려 있으면 PC 프로그램이 보드에 연결할 수 없습니다.
+
+### 보드: 아두이노 우노
 1. Arduino IDE에서 **LiquidCrystal I2C** 라이브러리(Frank de Brabander) 설치
-2. `arduino/sort_board/sort_board.ino`를 우노에 **업로드** (Scratch에서 쓰던 펌웨어 대신 이 코드가 들어가야 합니다)
+2. `arduino/sort_board/sort_board.ino`를 우노에 **업로드**
 3. 배선: RGB LED R→9, G→10, B→11 / LCD SDA→A4, SCL→A5, VCC→5V, GND→GND
 
+(이 `.ino` 파일은 Arduino IDE로 ESP32에 올려도 동작합니다. 그때 핀은 위 ESP32 표와 같습니다.)
+
+### 보드 확인
 LCD 주소(0x27, 0x3F, 0x20 등)는 보드가 켜질 때 스스로 찾습니다.
 프로그램이 보드에 연결되면 LED가 **빨강 → 초록 → 파랑**으로 한 번씩 켜지고, 실행 창에
 `[보드] COM3 에 연결했습니다. (READY sort_board LCD=0x27)`처럼 나옵니다.
 
 보드가 동작하지 않으면 실행 창의 `[보드]` 메시지를 확인하세요.
-- `sort_board 프로그램이 올라간 보드를 찾지 못했습니다` → 2번 업로드를 다시 하고,
-  Arduino IDE의 **시리얼 모니터가 열려 있으면 닫으세요** (열려 있으면 프로그램이 연결할 수 없습니다).
-- `LCD를 찾지 못했습니다` → LCD 배선(3번)을 확인하세요.
+- `sort_board 프로그램이 올라간 보드를 찾지 못했습니다` → 위 업로드(저장) 단계를 다시 하고,
+  **Thonny나 Arduino IDE가 보드에 연결된 채 열려 있으면 닫으세요.**
+- `MicroPython 은 있지만 main.py 가 실행되고 있지 않습니다` → ESP32 3~4번 단계를 다시 하세요.
+- `LCD를 찾지 못했습니다` → LCD 배선을 확인하세요.
 - LED 색이 반대로 나오면(꺼야 할 때 하얗게 켜짐) 애노드 공통형 LED입니다. 알려 주시면 맞춰 드릴게요.
 
-아두이노가 없어도 카메라 창에 LCD/LED 상태가 나오기 때문에 그대로 실행할 수 있습니다.
+보드가 없어도 카메라 창에 LCD/LED 상태가 나오기 때문에 그대로 실행할 수 있습니다.
 
 ## 실행
 
@@ -124,7 +145,8 @@ SORTS = {
 | `camera.py` | 카메라 창, 글자 인식(EasyOCR) | 글자 인식 / 휴대폰 카메라 확장 |
 | `speech.py` | "확인", 정렬 이름 음성 인식(구글) | 음성 인식 확장 |
 | `board.py` | 아두이노 시리얼 통신 | 우노 확장 (RGB, LCD) |
-| `arduino/sort_board/sort_board.ino` | 아두이노 코드 | |
+| `esp32/main.py` | ESP32 코드 (MicroPython, Thonny로 저장) | |
+| `arduino/sort_board/sort_board.ino` | 아두이노 코드 (우노, ESP32) | |
 | `tests/test_checker.py` | 카메라·보드 없이 하는 테스트 | |
 
 ## 테스트
