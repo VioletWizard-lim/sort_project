@@ -5,3 +5,4 @@ numpy
 pyserial
 SpeechRecognition
 sounddevice
+bleak

@@ -54,6 +54,18 @@ Scratch의 음성 인식 확장처럼 **구글 음성 인식**을 사용하므�
 4. **Thonny를 닫고** ESP32의 **EN(리셋) 버튼**을 한 번 누릅니다. LCD에 `Ready`가 나오면 준비 끝입니다.
    Thonny가 ESP32에 연결된 채로 열려 있으면 PC 프로그램이 보드에 연결할 수 없습니다.
 
+### ESP32를 블루투스로 쓰기 (선 없이)
+`esp32/main.py`는 USB와 **블루투스(BLE)를 동시에** 기다립니다. 따로 설정할 것은 없습니다.
+1. 위 단계대로 `main.py`를 ESP32에 저장한 뒤 USB 선을 뽑고, **보조배터리나 USB 충전기로 전원만** 넣습니다.
+2. PC의 **블루투스를 켭니다.** (윈도우에서 미리 페어링할 필요는 없습니다)
+3. `sort_project.bat`을 실행합니다. USB로 연결된 보드가 없으면 블루투스에서 `sort_board`를 찾아 연결합니다.
+   실행 창에 `[보드] 블루투스 'sort_board' 에 연결했습니다.`가 나오면 성공입니다.
+
+- 블루투스가 닿는 거리는 약 10m입니다.
+- USB 선이 꽂혀 있으면 USB가 먼저입니다. 블루투스만 쓰려면 `python main.py --port ble`로 실행합니다.
+- 여러 대를 쓸 때는 `esp32/main.py` 맨 위의 `BOARD_NAME`을 보드마다 다르게(예: `sort_board_2`) 저장하고,
+  PC에서 `python main.py --board-name sort_board_2`처럼 실행합니다.
+
 ### 보드: 아두이노 우노
 1. Arduino IDE에서 **LiquidCrystal I2C** 라이브러리(Frank de Brabander) 설치
 2. `arduino/sort_board/sort_board.ino`를 우노에 **업로드**

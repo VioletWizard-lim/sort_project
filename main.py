@@ -23,7 +23,9 @@ def parse_args():
     parser.add_argument("--camera", default="0",
                         help="카메라 번호 또는 영상 주소 (기본: 0)")
     parser.add_argument("--port", default="auto",
-                        help="아두이노 포트 (auto / COM3 / /dev/ttyACM0 / none)")
+                        help="보드 연결 (auto: USB 먼저, 없으면 블루투스 / ble: 블루투스만 / COM3 / none)")
+    parser.add_argument("--board-name", default="sort_board",
+                        help="블루투스로 찾을 보드 이름 (esp32/main.py 의 BOARD_NAME, 기본: sort_board)")
     parser.add_argument("--cards", type=int, default=NUM_CARDS,
                         help=f"카드 장수 (기본: {NUM_CARDS})")
     parser.add_argument("--font", default=None, help="말풍선에 쓸 한글 글꼴 파일")
@@ -38,7 +40,7 @@ def main():
     stop_event = threading.Event()
     triggers = queue.Queue()
 
-    board = Board(args.port)
+    board = Board(args.port, ble_name=args.board_name)
     reader = CardReader(gpu=args.gpu)
     view = CameraView(source, reader, board, triggers, stop_event, font_path=args.font)
     checker = SortChecker(view, board, triggers, stop_event, SORTS,
