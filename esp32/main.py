@@ -216,6 +216,7 @@ def run(line):
 
 try:
     uart = BLEUart(BOARD_NAME)
+    print("BLE on: " + BOARD_NAME)  # Thonny 셸에서 블루투스가 켜졌는지 확인할 수 있다
 except Exception as e:  # 블루투스가 없는 보드에서도 USB 로는 쓸 수 있게 한다
     print("BLE off: " + repr(e))
 
