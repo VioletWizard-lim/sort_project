@@ -164,7 +164,10 @@ class SortChecker:
     # ---------- 단계 확인 ----------
 
     def show_guide(self):
-        """LCD 안내: 지금 비교할 두 카드를 보여준다."""
+        """LCD 안내: 지금 비교할 두 카드를 보여준다. (정렬이 따로 정한 안내가 있으면 그것을)"""
+        if self.step.lcd:
+            self.board.lcd(*self.step.lcd)
+            return
         a, b = self.step.a, self.step.b
         self.board.lcd(f"Pos {a + 1} <-> {b + 1}",
                        f"{self.prev[a]} ? {self.prev[b]}")
@@ -211,7 +214,7 @@ class SortChecker:
             self.flash(BLUE, "통과! 안 바꿔도 돼요!")
             self.next_step()
         else:
-            self.flash(RED, "바꿔야 돼요!")
+            self.flash(RED, step.hint or "바꿔야 돼요!")
             self.handle_wrong()
 
     def celebrate(self):

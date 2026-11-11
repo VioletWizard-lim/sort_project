@@ -11,7 +11,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from checker import BLUE, RED, SortChecker, Stopped, parse_card  # noqa: E402
-from sorts import SORTS, apply, bubble_sort  # noqa: E402
+from sorts import SORTS, apply, bubble_sort, selection_sort  # noqa: E402
 
 
 class FakeView:
@@ -136,6 +136,41 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(checker.board.lcd_lines[0], "Pos 1 <-> 2")
 
 
+class SelectionSortTest(unittest.TestCase):
+    def test_steps(self):
+        steps = selection_sort([5, 2, 8, 1])
+        self.assertEqual([(s.a, s.b, s.swap) for s in steps], [(0, 3, True), (1, 1, False), (2, 3, True)])
+
+    def test_lcd_does_not_reveal_where_the_smallest_card_is(self):
+        checker = make_checker([5, 2, 8, 1], "selection")
+        self.assertEqual(checker.board.lcd_lines, ["Select pos 1", "min of 1-4"])
+
+    def test_correct_swap_then_already_in_place(self):
+        checker = make_checker([5, 2, 8, 1], "selection")
+        checker.check([1, 2, 8, 5])
+        self.assertIn("1번째 자리 완성!", checker.view.messages)
+        self.assertEqual(checker.board.lcd_lines, ["Select pos 2", "min of 2-4"])
+        checker.check([1, 2, 8, 5])  # 2 는 이미 제자리
+        self.assertIn("통과! 안 바꿔도 돼요!", checker.view.messages)
+        self.assertEqual(checker.wrongs, 0)
+
+    def test_left_alone_when_a_smaller_card_exists(self):
+        checker = make_checker([5, 2, 8, 1], "selection")
+        checker.check([5, 2, 8, 1])
+        self.assertIn("더 작은 카드가 있어요!", checker.view.messages)
+        self.assertEqual(checker.wrongs, 1)
+
+    def test_swapped_with_a_card_that_is_not_the_smallest(self):
+        checker = make_checker([5, 2, 8, 1], "selection")
+        checker.check([2, 5, 8, 1])
+        self.assertIn("틀렸어요", checker.view.messages)
+        self.assertEqual(checker.prev, [5, 2, 8, 1])
+
+    def test_fits_on_the_lcd(self):
+        for step in selection_sort(list(range(16, 0, -1))):
+            self.assertTrue(all(len(line) <= 16 for line in step.lcd))
+
+
 class RegisterTest(unittest.TestCase):
     def test_register_retries_until_all_cards_seen(self):
         checker = SortChecker(FakeView(), FakeBoard(), queue.Queue(), threading.Event(),
@@ -194,6 +229,12 @@ class ChooseSortTest(unittest.TestCase):
         checker = self.make()
         self.choose(checker, [("word", "확인"), ("word", "1번")])
         self.assertIs(checker.method, SORTS["bubble"])
+
+    def test_choose_selection_by_key_or_voice(self):
+        for event in [("key", "2"), ("word", "선택"), ("word", "2번")]:
+            checker = self.make()
+            self.choose(checker, [event])
+            self.assertIs(checker.method, SORTS["selection"], event)
 
     def test_preset_sort_skips_question(self):
         checker = make_checker([2, 1])
