@@ -78,7 +78,26 @@ def selection_sort(cards):
     return steps
 
 
+def insertion_sort(cards):
+    """삽입 정렬: 두 번째 카드부터 차례로, 왼쪽 카드와 한 칸씩 바꾸며 제자리까지 옮긴다.
+    왼쪽 카드가 더 작거나 같아지면(바꾸지 않고 확인) 또는 맨 앞에 닿으면 그 카드는 끝이다."""
+    arr = list(cards)
+    steps = []
+    for i in range(1, len(arr)):
+        j = i
+        while j > 0:
+            step = Step(j - 1, j, arr[j - 1] > arr[j])
+            steps.append(step)
+            arr = apply(arr, step)
+            if not step.swap:
+                break
+            j -= 1
+        steps[-1].message = f"앞의 {i + 1}장 정렬 완료!"
+    return steps
+
+
 SORTS = {
     "bubble": SortMethod("버블 정렬", "Bubble", ("버블", "거품", "bubble"), bubble_sort),
     "selection": SortMethod("선택 정렬", "Select", ("선택", "selection"), selection_sort),
+    "insertion": SortMethod("삽입 정렬", "Insert", ("삽입", "insertion"), insertion_sort),
 }
