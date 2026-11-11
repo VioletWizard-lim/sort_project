@@ -86,7 +86,7 @@ class CameraView:
         self.board = board
         self.triggers = triggers
         self.stop_event = stop_event
-        self.font = _load_font(font_path, 28)
+        self.font = _load_font(font_path, 20)
 
         self._lock = threading.Lock()
         self._frame = None
@@ -163,14 +163,14 @@ class CameraView:
         pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         overlay = Image.new("RGBA", pil.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(overlay)
-        margin, padding, gap = 14, 16, 10
+        margin, padding, gap = 10, 10, 6
         lines = _wrap(draw, message, self.font, pil.width - 2 * (margin + padding))
         line_height = self.font.getbbox("가Ay")[3] + gap
         width = max(draw.textlength(line, font=self.font) for line, _ in lines)
         box = (margin, margin, margin + width + 2 * padding,
                margin + line_height * len(lines) - gap + 2 * padding)
         # 살짝 비치는 흰 말풍선, 첫 문단(제목)은 파란색, 나머지는 진한 회색
-        draw.rounded_rectangle(box, radius=18, fill=(255, 255, 255, 235), outline=(90, 90, 90, 255), width=2)
+        draw.rounded_rectangle(box, radius=12, fill=(255, 255, 255, 235), outline=(90, 90, 90, 255), width=2)
         y = margin + padding
         for line, number in lines:
             color = (25, 90, 200, 255) if number == 0 else (40, 40, 40, 255)
