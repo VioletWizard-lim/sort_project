@@ -4,7 +4,12 @@
 Step 하나는 '카드 두 장(a, b)을 비교해서 바꿀지 말지'이다.
     swap=True  -> 학생이 두 카드를 바꿔야 정답
     swap=False -> 학생이 그대로 두고 확인해야 정답
+move=True 이면 바꾸는 대신 a 번째 카드를 빼서 b 번째 자리에 끼워 넣는다. (삽입 정렬)
+그때 swap 은 '옮겨야 하는지'를 뜻한다.
 message 가 있으면 그 단계를 통과한 뒤에 말풍선으로 보여준다.
+lcd 를 주면 LCD 안내를 그 두 줄로 바꾼다. (기본은 'Pos a <-> b' 와 두 카드. 선택 정렬처럼
+바꿀 위치를 알려 주면 정답이 드러나는 정렬에서 쓴다)
+hint 는 바꿔야 하는데 그대로 뒀을 때 할 말이다. (기본: '바꿔야 돼요!')
 
 새 정렬을 추가하려면 같은 모양의 함수를 만들고 SORTS 에 SortMethod 로 등록하면 된다.
 SORTS 에 넣은 순서대로 키보드 숫자 1, 2, 3 ... 이 붙는다.
@@ -18,6 +23,9 @@ class Step:
     b: int
     swap: bool
     message: str = None
+    lcd: tuple = None
+    hint: str = None
+    move: bool = False
 
 
 @dataclass
@@ -31,7 +39,11 @@ class SortMethod:
 def apply(cards, step):
     """단계대로 했을 때의 카드 배열"""
     result = list(cards)
-    if step.swap:
+    if not step.swap:
+        return result
+    if step.move:  # a 번째 카드를 빼서 b 번째 자리에 끼워 넣는다 (사이의 카드들은 한 칸씩 밀린다)
+        result.insert(step.b, result.pop(step.a))
+    else:
         result[step.a], result[step.b] = result[step.b], result[step.a]
     return result
 
@@ -56,6 +68,42 @@ def bubble_sort(cards):
     return steps
 
 
+def selection_sort(cards):
+    """선택 정렬: 앞자리부터 차례로, 남은 카드 중 가장 작은 카드를 찾아 그 자리로 가져온다.
+    가장 작은 카드는 학생이 직접 찾아야 하므로 LCD 에 그 위치를 보여 주지 않는다."""
+    arr = list(cards)
+    n = len(arr)
+    steps = []
+    for i in range(n - 1):
+        smallest = min(range(i, n), key=lambda k: arr[k])
+        step = Step(i, smallest, smallest != i,
+                    message=f"{i + 1}번째 자리 완성!",
+                    lcd=(f"Select pos {i + 1}", f"min of {i + 1}-{n}"),
+                    hint="더 작은 카드가 있어요!")
+        steps.append(step)
+        arr = apply(arr, step)
+    return steps
+
+
+def insertion_sort(cards):
+    """삽입 정렬: 두 번째 카드부터 차례로, 그 카드를 빼서 왼쪽의 정렬된 카드들 사이 제자리에 끼워 넣는다.
+    (더 큰 카드들은 한 칸씩 오른쪽으로 밀린다) 넣을 자리는 학생이 찾아야 하므로 LCD 에는 넣을 카드만 보여 준다."""
+    arr = list(cards)
+    steps = []
+    for i in range(1, len(arr)):
+        # 왼쪽 정렬된 카드 중 처음으로 더 큰 카드의 자리. 같은 숫자는 그 뒤에 넣는다.
+        place = next((k for k in range(i) if arr[k] > arr[i]), i)
+        step = Step(i, place, place != i, move=True,
+                    message=f"앞의 {i + 1}장 정렬 완료!",
+                    lcd=(f"Insert card {i + 1}", f"value {arr[i]}"),
+                    hint="더 앞으로 가야 해요!")
+        steps.append(step)
+        arr = apply(arr, step)
+    return steps
+
+
 SORTS = {
     "bubble": SortMethod("버블 정렬", "Bubble", ("버블", "거품", "bubble"), bubble_sort),
+    "selection": SortMethod("선택 정렬", "Select", ("선택", "selection"), selection_sort),
+    "insertion": SortMethod("삽입 정렬", "Insert", ("삽입", "insertion"), insertion_sort),
 }
