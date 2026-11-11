@@ -68,7 +68,7 @@ class SortChecker:
 
     def say(self, message, secs=None):
         """말하기 / ~초 동안 말하기"""
-        print(f"[말풍선] {message}")
+        print("[말풍선] " + message.replace("\n", " / "))
         self.view.say(message)
         if secs is not None:
             self._sleep(secs)
@@ -114,8 +114,8 @@ class SortChecker:
         if self.method is None:
             self.board.lcd("Choose sort",
                            " ".join(f"{n}{m.lcd_name[:3]}" for n, m in enumerate(self.sorts, start=1)))
-            choices = ", ".join(f"{n}번 {m.name}" for n, m in enumerate(self.sorts, start=1))
-            self.say(f"정렬 방법을 골라주세요. ({choices}) 숫자키를 누르거나 '1번', '버블 정렬'처럼 말해주세요")
+            choices = "\n".join(f"{n}번   {m.name}" for n, m in enumerate(self.sorts, start=1))
+            self.say("정렬 방법을 골라주세요\n" + choices + "\n숫자키를 누르거나 '1번'처럼 말해 주세요")
             self.method = self.wait_for(self._method_for)
         self.say(f"{self.method.name}을 시작해요!", 2)
 
@@ -140,7 +140,7 @@ class SortChecker:
         """처음 카드 등록"""
         self.board.lcd("Set Cards", "SPACE or VOICE")
         while True:
-            self.say("카드를 놓고 스페이스바를 누르거나 확인이라고 말해주세요")
+            self.say("카드를 놓아 주세요\n다 놓았으면 스페이스바를 누르거나 '확인'이라고 말해 주세요")
             self.wait_trigger()
             current = self.read_cards()
             if len(current) == self.num_cards:
@@ -178,7 +178,7 @@ class SortChecker:
         if moved:
             # 카드를 섞어 버리면 원래 순서를 기억하기 어려우므로, 돌려놓을 순서를 다음 확인 때까지 보여 준다
             self.board.lcd("Wrong! Put back")
-            self.say("카드를 원래대로 돌려놓고 다시 해 보세요: " + " ".join(str(card) for card in self.prev))
+            self.say("카드를 원래대로 돌려놓고 다시 해 보세요\n" + "   ".join(str(card) for card in self.prev))
         else:
             self.board.lcd("Wrong! Try again")
         self._sleep(1)

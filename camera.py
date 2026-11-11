@@ -61,16 +61,20 @@ def _load_font(path, size):
 
 
 def _wrap(draw, message, font, max_width):
-    """말풍선이 창 밖으로 나가지 않게 띄어쓰기 단위로 줄을 바꾼다."""
-    lines, line = [], ""
-    for word in message.split(" "):
-        candidate = f"{line} {word}" if line else word
-        if line and draw.textlength(candidate, font=font) > max_width:
-            lines.append(line)
-            line = word
-        else:
-            line = candidate
-    return lines + [line]
+    """말풍선이 창 밖으로 나가지 않게 줄을 바꾼다. 메시지 안의 줄바꿈은 그대로 지키고,
+    너무 긴 줄은 띄어쓰기 단위로 나눈다. [(줄, 몇 번째 문단인지), ...]"""
+    lines = []
+    for number, paragraph in enumerate(message.split("\n")):
+        line = ""
+        for word in paragraph.split(" "):
+            candidate = f"{line} {word}" if line else word
+            if line and draw.textlength(candidate, font=font) > max_width:
+                lines.append((line, number))
+                line = word
+            else:
+                line = candidate
+        lines.append((line, number))
+    return lines
 
 
 class CameraView:
@@ -157,12 +161,22 @@ class CameraView:
     def _draw_bubble(self, image, message):
         from PIL import Image, ImageDraw
         pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        draw = ImageDraw.Draw(pil)
-        text = "\n".join(_wrap(draw, message, self.font, pil.width - 60))
-        left, top, right, bottom = draw.multiline_textbbox((20, 20), text, font=self.font, spacing=6)
-        draw.rounded_rectangle((left - 12, top - 10, right + 12, bottom + 10),
-                               radius=12, fill="white", outline="black", width=2)
-        draw.multiline_text((20, 20), text, font=self.font, fill="black", spacing=6)
+        overlay = Image.new("RGBA", pil.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        margin, padding, gap = 14, 16, 10
+        lines = _wrap(draw, message, self.font, pil.width - 2 * (margin + padding))
+        line_height = self.font.getbbox("가Ay")[3] + gap
+        width = max(draw.textlength(line, font=self.font) for line, _ in lines)
+        box = (margin, margin, margin + width + 2 * padding,
+               margin + line_height * len(lines) - gap + 2 * padding)
+        # 살짝 비치는 흰 말풍선, 첫 문단(제목)은 파란색, 나머지는 진한 회색
+        draw.rounded_rectangle(box, radius=18, fill=(255, 255, 255, 235), outline=(90, 90, 90, 255), width=2)
+        y = margin + padding
+        for line, number in lines:
+            color = (25, 90, 200, 255) if number == 0 else (40, 40, 40, 255)
+            draw.text((margin + padding, y), line, font=self.font, fill=color)
+            y += line_height
+        pil = Image.alpha_composite(pil.convert("RGBA"), overlay).convert("RGB")
         return cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
     # ---------- 메인 반복 (메인 스레드에서 실행) ----------
