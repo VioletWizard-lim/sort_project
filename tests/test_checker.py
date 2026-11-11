@@ -206,7 +206,7 @@ class InsertionSortTest(unittest.TestCase):
         checker.check([2, 5, 7, 3])
         checker.check([5, 3, 2, 7])      # 옮기다가 다른 카드까지 섞어 버림
         self.assertIn("틀렸어요", checker.view.messages)
-        self.assertIn("카드를 원래대로 돌려놓고 다시 해 보세요: 2 5 7 3", checker.view.messages)
+        self.assertIn("카드를 원래대로 돌려놓고 다시 해 보세요\n2   5   7   3", checker.view.messages)
         checker.check([2, 3, 5, 7])      # 원래대로 돌려놓지 않고 바로 맞게 넣어도 정답
         self.assertTrue(checker.done)
 
