@@ -173,34 +173,48 @@ class SelectionSortTest(unittest.TestCase):
 
 class InsertionSortTest(unittest.TestCase):
     def test_steps(self):
-        steps = insertion_sort([3, 1, 2])
-        self.assertEqual([(s.a, s.b, s.swap) for s in steps], [(0, 1, True), (1, 2, True), (0, 1, False)])
-        self.assertEqual([s.message for s in steps], ["앞의 2장 정렬 완료!", None, "앞의 3장 정렬 완료!"])
+        steps = insertion_sort([2, 5, 7, 3])
+        self.assertEqual([(s.a, s.b, s.swap) for s in steps], [(1, 1, False), (2, 2, False), (3, 1, True)])
+        self.assertEqual([s.lcd for s in steps],
+                         [("Insert card 2", "value 5"), ("Insert card 3", "value 7"), ("Insert card 4", "value 3")])
+        self.assertEqual(apply([2, 5, 7, 3], steps[2]), [2, 3, 5, 7])
 
-    def test_already_sorted_needs_one_check_per_card(self):
-        steps = insertion_sort([1, 2, 3, 4])
-        self.assertEqual([(s.a, s.b, s.swap) for s in steps], [(0, 1, False), (1, 2, False), (2, 3, False)])
+    def test_one_check_per_card(self):
+        self.assertEqual(len(insertion_sort([8, 7, 6, 5, 4, 3, 2, 1])), 7)
 
-    def test_card_moves_left_until_smaller_card(self):
+    def test_take_out_and_insert(self):
         checker = make_checker([2, 5, 7, 3], "insertion")
-        checker.check([2, 5, 7, 3])      # 5 > 2 아님: 그대로
-        checker.check([2, 5, 7, 3])      # 7 > 5 아님: 그대로
-        self.assertEqual(checker.board.lcd_lines, ["Pos 3 <-> 4", "7 ? 3"])
-        checker.check([2, 5, 3, 7])      # 3 을 왼쪽으로
-        self.assertEqual(checker.board.lcd_lines, ["Pos 2 <-> 3", "5 ? 3"])
-        checker.check([2, 3, 5, 7])      # 한 칸 더 왼쪽으로
-        self.assertEqual(checker.board.lcd_lines, ["Pos 1 <-> 2", "2 ? 3"])
-        checker.check([2, 3, 5, 7])      # 2 < 3 이라 멈춤
+        checker.check([2, 5, 7, 3])
+        self.assertIn("앞의 2장 정렬 완료!", checker.view.messages)
+        checker.check([2, 5, 7, 3])
+        self.assertEqual(checker.board.lcd_lines, ["Insert card 4", "value 3"])
+        checker.check([2, 3, 5, 7])      # 3 을 빼서 2 다음에 끼움
         self.assertTrue(checker.done)
         self.assertEqual(checker.wrongs, 0)
 
-    def test_stopping_too_early(self):
-        checker = make_checker([2, 3, 1], "insertion")
-        checker.check([2, 3, 1])
-        checker.check([2, 1, 3])
-        checker.check([2, 1, 3])         # 2 > 1 인데 그대로 둠
-        self.assertIn("바꿔야 돼요!", checker.view.messages)
-        self.assertEqual(checker.wrongs, 1)
+    def test_inserted_in_the_wrong_place(self):
+        checker = make_checker([2, 5, 7, 3], "insertion")
+        checker.check([2, 5, 7, 3])
+        checker.check([2, 5, 7, 3])
+        checker.check([2, 5, 3, 7])      # 한 칸만 옮김
+        self.assertIn("틀렸어요", checker.view.messages)
+        self.assertEqual(checker.prev, [2, 5, 7, 3])
+
+    def test_left_alone_when_it_should_move(self):
+        checker = make_checker([5, 2], "insertion")
+        checker.check([5, 2])
+        self.assertIn("더 앞으로 가야 해요!", checker.view.messages)
+
+    def test_equal_cards(self):
+        steps = insertion_sort([3, 1, 3, 2])
+        arr = [3, 1, 3, 2]
+        for step in steps:
+            arr = apply(arr, step)
+        self.assertEqual(arr, [1, 2, 3, 3])
+
+    def test_fits_on_the_lcd(self):
+        for step in insertion_sort([300, 299, 1, 250, 9, 8, 7, 6, 5, 4, 3, 2, 1, 100, 200, 150]):
+            self.assertTrue(all(len(line) <= 16 for line in step.lcd))
 
 
 class RegisterTest(unittest.TestCase):

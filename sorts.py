@@ -4,6 +4,8 @@
 Step 하나는 '카드 두 장(a, b)을 비교해서 바꿀지 말지'이다.
     swap=True  -> 학생이 두 카드를 바꿔야 정답
     swap=False -> 학생이 그대로 두고 확인해야 정답
+move=True 이면 바꾸는 대신 a 번째 카드를 빼서 b 번째 자리에 끼워 넣는다. (삽입 정렬)
+그때 swap 은 '옮겨야 하는지'를 뜻한다.
 message 가 있으면 그 단계를 통과한 뒤에 말풍선으로 보여준다.
 lcd 를 주면 LCD 안내를 그 두 줄로 바꾼다. (기본은 'Pos a <-> b' 와 두 카드. 선택 정렬처럼
 바꿀 위치를 알려 주면 정답이 드러나는 정렬에서 쓴다)
@@ -23,6 +25,7 @@ class Step:
     message: str = None
     lcd: tuple = None
     hint: str = None
+    move: bool = False
 
 
 @dataclass
@@ -36,7 +39,11 @@ class SortMethod:
 def apply(cards, step):
     """단계대로 했을 때의 카드 배열"""
     result = list(cards)
-    if step.swap:
+    if not step.swap:
+        return result
+    if step.move:  # a 번째 카드를 빼서 b 번째 자리에 끼워 넣는다 (사이의 카드들은 한 칸씩 밀린다)
+        result.insert(step.b, result.pop(step.a))
+    else:
         result[step.a], result[step.b] = result[step.b], result[step.a]
     return result
 
@@ -79,20 +86,19 @@ def selection_sort(cards):
 
 
 def insertion_sort(cards):
-    """삽입 정렬: 두 번째 카드부터 차례로, 왼쪽 카드와 한 칸씩 바꾸며 제자리까지 옮긴다.
-    왼쪽 카드가 더 작거나 같아지면(바꾸지 않고 확인) 또는 맨 앞에 닿으면 그 카드는 끝이다."""
+    """삽입 정렬: 두 번째 카드부터 차례로, 그 카드를 빼서 왼쪽의 정렬된 카드들 사이 제자리에 끼워 넣는다.
+    (더 큰 카드들은 한 칸씩 오른쪽으로 밀린다) 넣을 자리는 학생이 찾아야 하므로 LCD 에는 넣을 카드만 보여 준다."""
     arr = list(cards)
     steps = []
     for i in range(1, len(arr)):
-        j = i
-        while j > 0:
-            step = Step(j - 1, j, arr[j - 1] > arr[j])
-            steps.append(step)
-            arr = apply(arr, step)
-            if not step.swap:
-                break
-            j -= 1
-        steps[-1].message = f"앞의 {i + 1}장 정렬 완료!"
+        # 왼쪽 정렬된 카드 중 처음으로 더 큰 카드의 자리. 같은 숫자는 그 뒤에 넣는다.
+        place = next((k for k in range(i) if arr[k] > arr[i]), i)
+        step = Step(i, place, place != i, move=True,
+                    message=f"앞의 {i + 1}장 정렬 완료!",
+                    lcd=(f"Insert card {i + 1}", f"value {arr[i]}"),
+                    hint="더 앞으로 가야 해요!")
+        steps.append(step)
+        arr = apply(arr, step)
     return steps
 
 
