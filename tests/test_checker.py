@@ -200,6 +200,16 @@ class InsertionSortTest(unittest.TestCase):
         self.assertIn("틀렸어요", checker.view.messages)
         self.assertEqual(checker.prev, [2, 5, 7, 3])
 
+    def test_mixed_up_cards_are_wrong_and_the_order_to_restore_is_shown(self):
+        checker = make_checker([2, 5, 7, 3], "insertion")
+        checker.check([2, 5, 7, 3])
+        checker.check([2, 5, 7, 3])
+        checker.check([5, 3, 2, 7])      # 옮기다가 다른 카드까지 섞어 버림
+        self.assertIn("틀렸어요", checker.view.messages)
+        self.assertIn("카드를 원래대로 돌려놓고 다시 해 보세요: 2 5 7 3", checker.view.messages)
+        checker.check([2, 3, 5, 7])      # 원래대로 돌려놓지 않고 바로 맞게 넣어도 정답
+        self.assertTrue(checker.done)
+
     def test_left_alone_when_it_should_move(self):
         checker = make_checker([5, 2], "insertion")
         checker.check([5, 2])

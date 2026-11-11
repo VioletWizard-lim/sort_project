@@ -172,10 +172,15 @@ class SortChecker:
         self.board.lcd(f"Pos {a + 1} <-> {b + 1}",
                        f"{self.prev[a]} ? {self.prev[b]}")
 
-    def handle_wrong(self):
-        """오답처리"""
+    def handle_wrong(self, moved=False):
+        """오답처리. moved: 카드를 잘못 옮겨서 배열이 바뀐 경우"""
         self.wrongs += 1
-        self.board.lcd("Wrong! Try again")
+        if moved:
+            # 카드를 섞어 버리면 원래 순서를 기억하기 어려우므로, 돌려놓을 순서를 다음 확인 때까지 보여 준다
+            self.board.lcd("Wrong! Put back")
+            self.say("카드를 원래대로 돌려놓고 다시 해 보세요: " + " ".join(str(card) for card in self.prev))
+        else:
+            self.board.lcd("Wrong! Try again")
         self._sleep(1)
         self.show_guide()
 
@@ -209,7 +214,7 @@ class SortChecker:
                 self.next_step()
             else:
                 self.flash(RED, "틀렸어요")
-                self.handle_wrong()
+                self.handle_wrong(moved=True)
         elif not step.swap:
             self.flash(BLUE, "통과! 안 바꿔도 돼요!")
             self.next_step()
